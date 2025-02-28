@@ -97,21 +97,41 @@
               if (!ctx)
                 return reject(new Error("Could not get canvas context"));
 
-              canvas.width = img.width;
-              canvas.height = img.height;
-              ctx.drawImage(img, 0, 0);
+              // Resizing if image is too large (e.g., max 1920x1080)
+              const maxWidth = 1920;
+              const maxHeight = 1080;
+              let { width, height } = img;
 
-              canvas.toBlob((blob) => {
-                if (!blob)
-                  return reject(new Error("Failed to convert image to WebP"));
-                const webpFile = new File(
-                  [blob],
-                  file.name.replace(/\.[^.]+$/, "") + ".webp",
-                  { type: "image/webp" }
-                );
-                resolve(webpFile);
-                return webpFile;
-              }, "image/webp");
+              if (width > maxWidth || height > maxHeight) {
+                const aspectRatio = width / height;
+                if (width > height) {
+                  width = maxWidth;
+                  height = Math.round(maxWidth / aspectRatio);
+                } else {
+                  height = maxHeight;
+                  width = Math.round(maxHeight * aspectRatio);
+                }
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              ctx.drawImage(img, 0, 0, width, height);
+
+              // Convert to WebP with quality 70%
+              canvas.toBlob(
+                (blob) => {
+                  if (!blob)
+                    return reject(new Error("Failed to convert image to WebP"));
+                  const webpFile = new File(
+                    [blob],
+                    file.name.replace(/\.[^.]+$/, "") + ".webp",
+                    { type: "image/webp" }
+                  );
+                  resolve(webpFile);
+                },
+                "image/webp",
+                0.7 // Adjust quality here (0 to 1)
+              );
             };
             img.onerror = (err) => reject(err);
           };
